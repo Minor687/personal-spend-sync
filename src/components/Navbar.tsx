@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
@@ -10,10 +10,16 @@ import {
 } from 'lucide-react';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   return (
     <nav className="bg-card border-b border-border px-4 py-3">
@@ -63,12 +69,12 @@ export function Navbar() {
 
         <div className="flex items-center space-x-4">
           <span className="hidden sm:block text-sm text-muted-foreground">
-            Welcome, {user?.name}
+            Welcome, {user?.email}
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={logout}
+            onClick={handleLogout}
             className="flex items-center space-x-2"
           >
             <LogOut className="h-4 w-4" />

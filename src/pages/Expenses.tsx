@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Edit, Trash2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Expense {
   id: string;
@@ -27,6 +29,7 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -35,20 +38,41 @@ export default function Expenses() {
     type: 'Expense' as 'Income' | 'Expense',
     date: new Date().toISOString().split('T')[0]
   });
+  const { user } = useAuth();
+
+  const fetchExpenses = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast.error('Failed to fetch expenses');
+        return;
+      }
+
+      const formattedExpenses: Expense[] = data.map(expense => ({
+        id: expense.id,
+        title: expense.title,
+        amount: typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount,
+        category: expense.category,
+        type: expense.type as 'Income' | 'Expense',
+        date: expense.date
+      }));
+
+      setExpenses(formattedExpenses);
+    } catch (error) {
+      toast.error('Failed to load expenses');
+    }
+  };
 
   useEffect(() => {
-    // Mock data - replace with API call
-    const mockExpenses: Expense[] = [
-      { id: '1', title: 'Salary', amount: 5000, category: 'Salary', type: 'Income', date: '2024-01-01' },
-      { id: '2', title: 'Groceries', amount: 150, category: 'Food', type: 'Expense', date: '2024-01-02' },
-      { id: '3', title: 'Gas', amount: 80, category: 'Transportation', type: 'Expense', date: '2024-01-03' },
-      { id: '4', title: 'Restaurant', amount: 120, category: 'Food', type: 'Expense', date: '2024-01-04' },
-      { id: '5', title: 'Freelance', amount: 800, category: 'Freelance', type: 'Income', date: '2024-01-05' },
-      { id: '6', title: 'Rent', amount: 1200, category: 'Housing', type: 'Expense', date: '2024-01-06' },
-    ];
-    setExpenses(mockExpenses);
-    setFilteredExpenses(mockExpenses);
-  }, []);
+    fetchExpenses();
+  }, [user]);
 
   useEffect(() => {
     let filtered = expenses;
@@ -64,30 +88,57 @@ export default function Expenses() {
     setFilteredExpenses(filtered);
   }, [expenses, filterCategory, filterType]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newExpense: Expense = {
-      id: editingExpense?.id || Date.now().toString(),
-      title: formData.title,
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      type: formData.type,
-      date: formData.date
-    };
-
-    if (editingExpense) {
-      setExpenses(prev => prev.map(expense => 
-        expense.id === editingExpense.id ? newExpense : expense
-      ));
-      toast.success('Expense updated successfully!');
-    } else {
-      setExpenses(prev => [newExpense, ...prev]);
-      toast.success('Expense added successfully!');
+    if (!formData.title || !formData.amount || !formData.category || !user) {
+      toast.error('Please fill in all fields');
+      return;
     }
 
-    resetForm();
-    setIsDialogOpen(false);
+    setIsLoading(true);
+
+    try {
+      const expenseData = {
+        title: formData.title,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        type: formData.type as 'Income' | 'Expense',
+        date: formData.date,
+        user_id: user.id
+      };
+
+      if (editingExpense) {
+        const { error } = await supabase
+          .from('expenses')
+          .update(expenseData)
+          .eq('id', editingExpense.id);
+
+        if (error) {
+          toast.error('Failed to update expense');
+          return;
+        }
+        toast.success('Expense updated successfully!');
+      } else {
+        const { error } = await supabase
+          .from('expenses')
+          .insert([expenseData]);
+
+        if (error) {
+          toast.error('Failed to add expense');
+          return;
+        }
+        toast.success('Expense added successfully!');
+      }
+
+      fetchExpenses();
+      resetForm();
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEdit = (expense: Expense) => {
@@ -102,9 +153,23 @@ export default function Expenses() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setExpenses(prev => prev.filter(expense => expense.id !== id));
-    toast.success('Expense deleted successfully!');
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        toast.error('Failed to delete expense');
+        return;
+      }
+
+      toast.success('Expense deleted successfully!');
+      fetchExpenses();
+    } catch (error) {
+      toast.error('An error occurred');
+    }
   };
 
   const resetForm = () => {
@@ -217,8 +282,8 @@ export default function Expenses() {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">
-                    {editingExpense ? 'Update' : 'Add'} Transaction
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (editingExpense ? 'Updating...' : 'Adding...') : (editingExpense ? 'Update' : 'Add')} Transaction
                   </Button>
                 </DialogFooter>
               </form>
@@ -289,9 +354,9 @@ export default function Expenses() {
                   
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className={`font-medium ${
-                        expense.type === 'Income' ? 'text-primary' : 'text-destructive'
-                      }`}>
+                      <p className="font-medium" style={{ 
+                        color: expense.type === 'Income' ? 'hsl(142, 76%, 36%)' : 'hsl(0, 84%, 60%)'
+                      }}>
                         {expense.type === 'Income' ? '+' : '-'}${expense.amount}
                       </p>
                       <p className="text-sm text-muted-foreground">{expense.type}</p>

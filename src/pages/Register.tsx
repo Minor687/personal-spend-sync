@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ export default function Register() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -35,10 +37,14 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      // Mock registration - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Account created successfully! Please sign in.');
-      navigate('/login');
+      const { error } = await signUp(formData.email, formData.password, formData.name);
+      
+      if (error) {
+        toast.error(error.message || 'Registration failed. Please try again.');
+      } else {
+        toast.success('Account created successfully! Please sign in.');
+        navigate('/login');
+      }
     } catch (error) {
       toast.error('Registration failed. Please try again.');
     } finally {

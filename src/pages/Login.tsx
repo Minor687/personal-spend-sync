@@ -12,28 +12,22 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Mock login for demo - replace with actual API call
-      if (email === 'demo@test.com' && password === 'password') {
-        const mockToken = 'mock-jwt-token';
-        const mockUser = {
-          id: '1',
-          name: 'Demo User',
-          email: 'demo@test.com'
-        };
-        
-        login(mockToken, mockUser);
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast.error(error.message || 'Login failed. Please try again.');
+      } else {
         toast.success('Login successful!');
         navigate('/dashboard');
-      } else {
-        toast.error('Invalid credentials. Use demo@test.com / password');
       }
     } catch (error) {
       toast.error('Login failed. Please try again.');
@@ -101,9 +95,7 @@ export default function Login() {
 
           <div className="mt-4 p-3 bg-muted rounded-md">
             <p className="text-xs text-muted-foreground text-center">
-              Demo credentials:<br />
-              Email: demo@test.com<br />
-              Password: password
+              Create an account to get started with tracking your expenses
             </p>
           </div>
         </CardContent>
