@@ -73,18 +73,27 @@ export default function Dashboard() {
     ],
   };
 
+  const categoryColors = {
+    'Food': 'hsl(25, 95%, 53%)',
+    'Transportation': 'hsl(217, 91%, 60%)', 
+    'Housing': 'hsl(142, 76%, 36%)',
+    'Entertainment': 'hsl(280, 100%, 70%)',
+    'Healthcare': 'hsl(0, 84%, 60%)',
+    'Shopping': 'hsl(45, 93%, 47%)',
+    'Utilities': 'hsl(210, 40%, 50%)',
+    'Education': 'hsl(160, 84%, 39%)',
+    'Travel': 'hsl(335, 78%, 42%)',
+    'Other': 'hsl(220, 9%, 46%)',
+  };
+
   const categoryData = {
     labels: Object.keys(summary.categoryBreakdown),
     datasets: [
       {
         data: Object.values(summary.categoryBreakdown),
-        backgroundColor: [
-          'hsl(var(--primary))',
-          'hsl(var(--secondary))',
-          'hsl(var(--accent))',
-          'hsl(var(--muted))',
-          'hsl(var(--destructive))',
-        ],
+        backgroundColor: Object.keys(summary.categoryBreakdown).map(
+          category => categoryColors[category as keyof typeof categoryColors] || 'hsl(var(--muted))'
+        ),
       },
     ],
   };
