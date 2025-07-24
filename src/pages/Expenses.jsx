@@ -8,65 +8,36 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Edit, Trash2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  type: 'Income' | 'Expense';
-  date: string;
-}
 
 const categories = ['Food', 'Transportation', 'Housing', 'Entertainment', 'Health', 'Shopping', 'Utilities', 'Salary', 'Freelance', 'Investment'];
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState([]);
+  const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
     amount: '',
     category: '',
-    type: 'Expense' as 'Income' | 'Expense',
+    type: 'Expense',
     date: new Date().toISOString().split('T')[0]
   });
   const { user } = useAuth();
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast.error('Failed to fetch expenses');
-        return;
-      }
-
-      const formattedExpenses: Expense[] = data.map(expense => ({
-        id: expense.id,
-        title: expense.title,
-        amount: typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount,
-        category: expense.category,
-        type: expense.type as 'Income' | 'Expense',
-        date: expense.date
-      }));
-
-      setExpenses(formattedExpenses);
+      const userExpenses = JSON.parse(localStorage.getItem(`expenses_${user.id}`) || '[]');
+      setExpenses(userExpenses);
     } catch (error) {
-      toast.error('Failed to load expenses');
+      console.error('Failed to load expenses');
     }
   };
 
@@ -88,7 +59,7 @@ export default function Expenses() {
     setFilteredExpenses(filtered);
   }, [expenses, filterCategory, filterType]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.title || !formData.amount || !formData.category || !user) {
@@ -100,34 +71,26 @@ export default function Expenses() {
 
     try {
       const expenseData = {
+        id: editingExpense ? editingExpense.id : Date.now().toString(),
         title: formData.title,
         amount: parseFloat(formData.amount),
         category: formData.category,
-        type: formData.type as 'Income' | 'Expense',
+        type: formData.type,
         date: formData.date,
         user_id: user.id
       };
 
-      if (editingExpense) {
-        const { error } = await supabase
-          .from('expenses')
-          .update(expenseData)
-          .eq('id', editingExpense.id);
+      const existingExpenses = JSON.parse(localStorage.getItem(`expenses_${user.id}`) || '[]');
 
-        if (error) {
-          toast.error('Failed to update expense');
-          return;
-        }
+      if (editingExpense) {
+        const updatedExpenses = existingExpenses.map(exp => 
+          exp.id === editingExpense.id ? expenseData : exp
+        );
+        localStorage.setItem(`expenses_${user.id}`, JSON.stringify(updatedExpenses));
         toast.success('Expense updated successfully!');
       } else {
-        const { error } = await supabase
-          .from('expenses')
-          .insert([expenseData]);
-
-        if (error) {
-          toast.error('Failed to add expense');
-          return;
-        }
+        existingExpenses.push(expenseData);
+        localStorage.setItem(`expenses_${user.id}`, JSON.stringify(existingExpenses));
         toast.success('Expense added successfully!');
       }
 
@@ -141,7 +104,7 @@ export default function Expenses() {
     }
   };
 
-  const handleEdit = (expense: Expense) => {
+  const handleEdit = (expense) => {
     setEditingExpense(expense);
     setFormData({
       title: expense.title,
@@ -153,17 +116,11 @@ export default function Expenses() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id) => {
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        toast.error('Failed to delete expense');
-        return;
-      }
+      const existingExpenses = JSON.parse(localStorage.getItem(`expenses_${user.id}`) || '[]');
+      const updatedExpenses = existingExpenses.filter(exp => exp.id !== id);
+      localStorage.setItem(`expenses_${user.id}`, JSON.stringify(updatedExpenses));
 
       toast.success('Expense deleted successfully!');
       fetchExpenses();
@@ -238,7 +195,7 @@ export default function Expenses() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="type">Type</Label>
-                  <Select value={formData.type} onValueChange={(value: 'Income' | 'Expense') => 
+                  <Select value={formData.type} onValueChange={(value) => 
                     setFormData(prev => ({ ...prev, type: value }))
                   }>
                     <SelectTrigger>

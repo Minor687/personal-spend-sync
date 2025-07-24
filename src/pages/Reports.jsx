@@ -6,29 +6,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  type: 'Income' | 'Expense';
-  date: string;
-}
 
 export default function Reports() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
   const [reportData, setReportData] = useState({
     totalIncome: 0,
     totalExpenses: 0,
     netIncome: 0,
-    categoryBreakdown: {} as Record<string, number>,
-    topCategories: [] as { category: string; amount: number; percentage: number }[]
+    categoryBreakdown: {},
+    topCategories: []
   });
 
   useEffect(() => {
     // Mock data - replace with API call
-    const mockExpenses: Expense[] = [
+    const mockExpenses = [
       { id: '1', title: 'Salary', amount: 5000, category: 'Salary', type: 'Income', date: '2024-01-01' },
       { id: '2', title: 'Groceries', amount: 150, category: 'Food', type: 'Expense', date: '2024-01-02' },
       { id: '3', title: 'Gas', amount: 80, category: 'Transportation', type: 'Expense', date: '2024-01-03' },
@@ -43,7 +35,7 @@ export default function Reports() {
     generateReport(mockExpenses);
   }, [selectedPeriod]);
 
-  const generateReport = (expenseData: Expense[]) => {
+  const generateReport = (expenseData) => {
     const income = expenseData.filter(e => e.type === 'Income').reduce((sum, e) => sum + e.amount, 0);
     const totalExpenses = expenseData.filter(e => e.type === 'Expense').reduce((sum, e) => sum + e.amount, 0);
     
@@ -52,7 +44,7 @@ export default function Reports() {
         acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       }
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     const topCategories = Object.entries(categoryBreakdown)
       .map(([category, amount]) => ({

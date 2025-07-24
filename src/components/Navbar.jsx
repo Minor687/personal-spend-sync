@@ -14,7 +14,7 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path) => location.pathname === path;
 
   const handleLogout = async () => {
     await signOut();
@@ -69,7 +69,7 @@ export function Navbar() {
 
         <div className="flex items-center space-x-4">
           <span className="hidden sm:block text-sm text-muted-foreground">
-            Welcome, {user?.email}
+            Welcome, {user?.display_name || user?.email}
           </span>
           <Button
             variant="outline"

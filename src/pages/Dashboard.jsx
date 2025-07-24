@@ -3,66 +3,36 @@ import { Navbar } from '@/components/Navbar';
 import { ExpenseChart } from '@/components/charts/ExpenseChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, PieChart } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  type: 'Income' | 'Expense';
-  date: string;
-}
 
 export default function Dashboard() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState({
     totalIncome: 0,
     totalExpenses: 0,
     balance: 0,
-    categoryBreakdown: {} as Record<string, number>
+    categoryBreakdown: {}
   });
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast.error('Failed to fetch expenses');
-        return;
-      }
-
-      const formattedExpenses: Expense[] = data.map(expense => ({
-        id: expense.id,
-        title: expense.title,
-        amount: typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount,
-        category: expense.category,
-        type: expense.type as 'Income' | 'Expense',
-        date: expense.date
-      }));
-
-      setExpenses(formattedExpenses);
+      const userExpenses = JSON.parse(localStorage.getItem(`expenses_${user.id}`) || '[]');
+      setExpenses(userExpenses);
 
       // Calculate summary
-      const income = formattedExpenses.filter(e => e.type === 'Income').reduce((sum, e) => sum + e.amount, 0);
-      const expense = formattedExpenses.filter(e => e.type === 'Expense').reduce((sum, e) => sum + e.amount, 0);
+      const income = userExpenses.filter(e => e.type === 'Income').reduce((sum, e) => sum + e.amount, 0);
+      const expense = userExpenses.filter(e => e.type === 'Expense').reduce((sum, e) => sum + e.amount, 0);
       
-      const categoryBreakdown = formattedExpenses.reduce((acc, expense) => {
+      const categoryBreakdown = userExpenses.reduce((acc, expense) => {
         if (expense.type === 'Expense') {
           acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
         }
         return acc;
-      }, {} as Record<string, number>);
+      }, {});
 
       setSummary({
         totalIncome: income,
@@ -71,7 +41,7 @@ export default function Dashboard() {
         categoryBreakdown
       });
     } catch (error) {
-      toast.error('Failed to load data');
+      console.error('Failed to load data');
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +89,7 @@ export default function Dashboard() {
       {
         data: Object.values(summary.categoryBreakdown),
         backgroundColor: Object.keys(summary.categoryBreakdown).map(
-          category => categoryColors[category as keyof typeof categoryColors] || 'hsl(var(--muted))'
+          category => categoryColors[category] || 'hsl(var(--muted))'
         ),
       },
     ],

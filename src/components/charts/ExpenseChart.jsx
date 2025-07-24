@@ -20,18 +20,12 @@ ChartJS.register(
   ArcElement
 );
 
-interface ExpenseChartProps {
-  type: 'bar' | 'doughnut';
-  data: any;
-  title: string;
-}
-
-export function ExpenseChart({ type, data, title }: ExpenseChartProps) {
+export function ExpenseChart({ type, data, title }) {
   const options = {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: 'top',
       },
       title: {
         display: true,
@@ -44,7 +38,7 @@ export function ExpenseChart({ type, data, title }: ExpenseChartProps) {
     responsive: true,
     plugins: {
       legend: {
-        position: 'bottom' as const,
+        position: 'bottom',
       },
       title: {
         display: true,
